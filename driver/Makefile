@@ -103,8 +103,11 @@ EXTRA_CFLAGS += -g -gdwarf-2 \
 #EXTRA_CFLAGS += $(shell test -f include/asm/msr-index.h && echo -DHAVE_INCLUDE_ASM_MSR_INDEX_H)
 #EXTRA_CFLAGS += $(shell grep -s atomic.*count include/*/semaphore*.h >/dev/null && echo -DHAVE_SEMAPHORE_ATOMIC_COUNT)
 
+all:
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+
 clean:
-	rm -rf .tmp_versions *.a *.o *.ko *.bak .*.d .*.cmd *.mod.c Module.* modules.order
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
 
 unl:
 	setuid root rmmod dtracedrv
