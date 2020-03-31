@@ -4,6 +4,7 @@
 # if !defined(SYS_IN_H)
 # define SYS_IN_H
 
+#if 0
 #define AF_INET         2               /* internetwork: UDP, TCP, etc. */
 #define AF_INET6        26              /* Internet Protocol, Version 6 */
 
@@ -45,6 +46,12 @@ struct in6_addr {
 #endif
 
 typedef struct in6_addr in6_addr_t;
+#endif
+
+/* These are only used in struct in6_addr */
+#define _S6_un			in6_u
+#define _S6_u8			u6_addr8
+#define _S6_u32			u6_addr32
 
 /* Exclude loopback and unspecified address */
 #ifdef _BIG_ENDIAN
