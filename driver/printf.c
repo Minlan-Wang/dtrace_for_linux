@@ -76,7 +76,7 @@ static char tmp[44];
 /*   regime.							      */
 /**********************************************************************/
 asmlinkage int
-printk(const char *fmt, ...)
+printj(const char *fmt, ...)
 {	va_list	ap;
 
 	va_start(ap, fmt);
