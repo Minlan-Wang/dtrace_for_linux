@@ -9,6 +9,7 @@ ssize_t syms_write(struct file *file, const char __user *buf,
 			      size_t count, loff_t *pos);
 ssize_t syms_read(struct file *fp, char __user *buf, size_t len, loff_t *off);
 void *get_proc_addr(char *name);
+void *get_proc_addr_no_warn(char *name);
 
 int	init_cyclic(void);
 void	dtrace_probe_provide(dtrace_probedesc_t *desc, dtrace_provider_t *);

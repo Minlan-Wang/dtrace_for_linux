@@ -231,12 +231,14 @@ taskq_create(const char *name, int nthreads, pri_t pri, int minalloc,
 			return 0;
 			}
 #endif
-		queue_delayed_work_ptr = get_proc_addr("queue_delayed_work");
+		queue_delayed_work_ptr = get_proc_addr_no_warn("queue_delayed_work");
 		queue_delayed_work_on_ptr = get_proc_addr("queue_delayed_work_on");
 		destroy_workqueue_ptr = get_proc_addr("destroy_workqueue");
 		flush_workqueue_ptr = get_proc_addr("flush_workqueue");
 		delayed_work_timer_fn_ptr = get_proc_addr("delayed_work_timer_fn");
+#ifdef CONFIG_LOCKDEP
 		lockdep_init_map_ptr = get_proc_addr("lockdep_init_map");
+#endif
 		cancel_work_sync_ptr = get_proc_addr("cancel_work_sync");
 
 		printk("queue_delayed_work_on_ptr=%p\n", queue_delayed_work_on_ptr);
@@ -244,7 +246,7 @@ taskq_create(const char *name, int nthreads, pri_t pri, int minalloc,
 		printk("destroy_workqueue_ptr=%p\n", destroy_workqueue_ptr);
 		printk("flush_workqueue_ptr=%p\n", flush_workqueue_ptr);
 		printk("delayed_work_timer_fn_ptr=%p\n", delayed_work_timer_fn_ptr);
-#if !defined(lockdep_init_map)
+#ifdef CONFIG_LOCKDEP
 		/***********************************************/
 		/*   This is a macro if CONFIG_LOCKDEP is not  */
 		/*   set.				       */

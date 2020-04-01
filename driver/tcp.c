@@ -122,7 +122,7 @@ prov_tcp_init(void)
 	/*   The  tcp_send  functions  below  changed  */
 	/*   names in the kernel.		       */
 	/***********************************************/
-# if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)
+# if 0
 	prcom_add_callback("tcp:::send", "tcp_event_data_sent", tcp_send);
 # else
 	prcom_add_callback("tcp:::send", "tcp_event_new_data_sent", tcp_send);

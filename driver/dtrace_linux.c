@@ -673,7 +673,7 @@ dtrace_linux_init(void)
 	/***********************************************/
 	/*   Useful for debugging.		       */
 	/***********************************************/
-	fn_sysrq_showregs_othercpus = get_proc_addr("sysrq_showregs_othercpus");
+	fn_sysrq_showregs_othercpus = get_proc_addr_no_warn("sysrq_showregs_othercpus");
 
 	/***********************************************/
 	/*   Used by prfind.			       */
@@ -725,7 +725,7 @@ dtrace_linux_init(void)
 	/*   free)  areas  where  time may be stored.  */
 	/*   This changed across the kernels.	       */
 	/***********************************************/
-	xtime_cache_ptr = (struct timespec *) get_proc_addr("xtime_cache");
+	xtime_cache_ptr = (struct timespec *) get_proc_addr_no_warn("xtime_cache");
 	if (xtime_cache_ptr == NULL)
 		xtime_cache_ptr = (struct timespec *) get_proc_addr("xtime");
 	__current_kernel_time_ptr = (struct timespec (*)(void)) get_proc_addr("__current_kernel_time");
@@ -1172,6 +1172,40 @@ static int count;
 	}
 	return NULL;
 }
+
+void *
+get_proc_addr_no_warn(char *name)
+{	void	*ptr;
+	struct map *mp;
+
+	if (xkallsyms_lookup_name == NULL) {
+		if (1 || dtrace_here)
+			printk(KERN_ERR "get_proc_addr: No value for xkallsyms_lookup_name (%s)\n", name);
+		return 0;
+		}
+
+	ptr = (void *) (*xkallsyms_lookup_name)(name);
+	if (ptr) {
+		if (dtrace_here)
+			printk("get_proc_addr(%s) := %p\n", name, ptr);
+		return ptr;
+	}
+
+	/***********************************************/
+	/*   Some    symbols   may   originate   from  */
+	/*   /boot/System.map, so try these out.       */
+	/***********************************************/
+	for (mp = syms; mp->m_name; mp++) {
+		if (strcmp(name, mp->m_name) == 0) {
+			if (dtrace_here)
+				printk("get_proc_addr(%s, internal) := %p\n", name, mp->m_ptr);
+			return mp->m_ptr;
+		}
+	}
+
+	return NULL;
+}
+
 /**********************************************************************/
 /*   Convert an address to a function name (if possible).	      */
 /**********************************************************************/
