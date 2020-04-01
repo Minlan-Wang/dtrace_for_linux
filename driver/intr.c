@@ -395,7 +395,7 @@ dtrace_int3_handler(int type, struct pt_regs *regs)
 	int	bkpt_offset = 1;
 # endif
 //dtrace_printf("#%lu INT3 PC:%p REGS:%p CPU:%d mode:%d\n", cnt_int3_1, regs->r_pc-1, regs, cpu_get_id(), this_cpu->cpuc_mode);
-//preempt_disable();
+preempt_disable();
 	cnt_int3_1++;
 
 	/***********************************************/
@@ -449,7 +449,7 @@ dtrace_int3_handler(int type, struct pt_regs *regs)
 			/*   can step over it.			       */
 			/***********************************************/
 			cpu_copy_instr(this_cpu, tp, regs);
-//preempt_enable_no_resched();
+preempt_enable_no_resched();
 //dtrace_printf("INT3 %p called CPU:%d good finish flags:%x\n", regs->r_pc-1, cpu_get_id(), regs->r_rfl);
 			this_cpu->cpuc_regs = this_cpu->cpuc_regs_old;
 this_cpu->cpuc_trap[0] = *tp;
@@ -1392,6 +1392,8 @@ static	struct x86_descriptor desc1;
 
 #if defined(CONFIG_PARAVIRT) && defined(__amd64)
 	if (dtrace_is_xen()) {
+		printk(KERN_ERR "xen platform: not supported yet\n");
+		return;
 		set_idt_entry(1, (unsigned long) dtrace_int1_xen); // single-step
 		set_idt_entry(3, (unsigned long) dtrace_int3_xen); // breakpoint
 		set_idt_entry(14, (unsigned long) dtrace_page_fault_xen);
@@ -1401,8 +1403,10 @@ static	struct x86_descriptor desc1;
 	{
 		set_idt_entry(1, (unsigned long) dtrace_int1); // single-step
 		set_idt_entry(3, (unsigned long) dtrace_int3); // breakpoint
+#if 0
 		set_idt_entry(14, (unsigned long) dtrace_page_fault);
 		set_idt_entry(13, (unsigned long) dtrace_int13); //GPF
+#endif
 	}
 //	set_idt_entry(11, (unsigned long) dtrace_int11); //segment_not_present
 

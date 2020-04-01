@@ -1194,6 +1194,36 @@ static	const char *(*my_kallsyms_lookup)(unsigned long addr,
 	my_kallsyms_lookup(addr, &symsize, &offset, &modname, buf);
 	return symsize;
 }
+
+static int
+init_syms(void)
+{
+	if (!xkallsyms_lookup_name) {
+		printk(KERN_ERR "xcallsyms_lookup_name is NULL\n");
+		return -1;
+	}
+
+	xmodules = (void *)get_proc_addr("modules");
+	if (!xmodules) {
+		printk(KERN_ERR "failed to get modules\n");
+		return -1;
+	}
+
+	xsys_call_table = (void **)get_proc_addr("sys_call_table");
+	if (!xsys_call_table) {
+		printk(KERN_ERR "failed to get sys_call_table\n");
+		return -1;
+	}
+
+	xia32_sys_call_table = (void **)get_proc_addr("ia32_sys_call_table");
+	if (!xia32_sys_call_table) {
+		printk(KERN_ERR "faied to get ia32_sys_call_table");
+		return -1;
+	}
+
+	return 0;
+}
+
 int
 sulword(const void *addr, ulong_t value)
 {
@@ -3079,6 +3109,63 @@ static struct miscdevice helper_dev = {
         &helper_fops
 };
 
+static void syms_write_init(void)
+{
+	printk("xcall_init\n");
+	xcall_init();
+	printk("dtrace_profile_init\n");
+	dtrace_profile_init();
+	printk("dtrace_prcom_init\n");
+	dtrace_prcom_init();
+	printk("dcpc_init\n");
+	dcpc_init();
+	printk("sdt_init\n");
+	sdt_init();
+	printk("ctl_init\n");
+	ctl_init();
+	/***********************************************/
+	/*   Initialise the io provider.	       */
+	/***********************************************/
+#if 0 /* mlwang: disable them for now */
+	io_prov_init();
+	instr_init();
+#endif
+
+	/***********************************************/
+	/*   Try  and  keep  this at the end, so that  */
+	/*   the fbt_invop handler is at the front of  */
+	/*   the  callback  list.  This  is a speedup  */
+	/*   optimisation  since  fbt  is  likely the  */
+	/*   most   common   provider   to  call  for  */
+	/*   breakpoint traps.			       */
+	/***********************************************/
+	printk("fbt_init2\n");
+	fbt_init2();
+
+	/***********************************************/
+	/*   Update the IDT so we get first chance at  */
+	/*   the breakpoint and pagefault interrupts.  */
+	/*   We   do   this   after   all  the  other  */
+	/*   providers,  so  that memory allocated by  */
+	/*   the  providers  can  now  be mapped into  */
+	/*   each    processes    page    map   table  */
+	/*   (vmalloc_sync_all).		       */
+	/***********************************************/
+	printk("intrinit2\n");
+	intr_init();
+
+	/***********************************************/
+	/*   Intercept  do_notify_resume  so  we  can  */
+	/*   tell  a  process  is getting delivered a  */
+	/*   signal  -  needed by fasttrap to avoid a  */
+	/*   sigreturn   returning   to  the  scratch  */
+	/*   buffer.				       */
+	/***********************************************/
+	signal_init();
+
+	return;
+}
+
 /**********************************************************************/
 /*   This is where we start after loading the driver.		      */
 /**********************************************************************/
@@ -3086,15 +3173,7 @@ static struct miscdevice helper_dev = {
 static int __init dtracedrv_init(void)
 {	int	i, ret;
 
-	/***********************************************/
-	/*   Create the parent directory.	       */
-	/***********************************************/
 static struct proc_dir_entry *dir;
-	dir = proc_mkdir("dtrace", NULL);
-	if (!dir) {
-		printk("Cannot create /proc/dtrace\n");
-		return -1;
-	}
 
 	/***********************************************/
 	/*   Early bootstrap get_proc_addr(). We pass  */
@@ -3102,8 +3181,30 @@ static struct proc_dir_entry *dir;
 	/*   functions   wont   handle  addresses  or  */
 	/*   values greater than 31-bits (yes, 31).    */
 	/***********************************************/
-	if (arg_kallsyms_lookup_name)
-		xkallsyms_lookup_name = (unsigned long (*)(char *)) simple_strtoul(arg_kallsyms_lookup_name, NULL, 0);
+	if (!arg_kallsyms_lookup_name) {
+		printk(KERN_ERR "Can't load dtracedrv: arg_kallsyms_lookup_name not specified\n");
+		return -1;
+	}
+
+	xkallsyms_lookup_name = (unsigned long (*)(char *)) simple_strtoul(arg_kallsyms_lookup_name, NULL, 0);
+	if (!xkallsyms_lookup_name) {
+		printk(KERN_WARNING "Invalid arg_kallsyms_lookup_name: %s\n", arg_kallsyms_lookup_name);
+		return -1;
+	}
+
+	init_syms();
+	dtrace_linux_init();
+	printk("NCPU: %u\n", NCPU);
+
+	/***********************************************/
+	/*   Create the parent directory.	       */
+	/***********************************************/
+
+	dir = proc_mkdir("dtrace", NULL);
+	if (!dir) {
+		printk("Cannot create /proc/dtrace\n");
+		return -1;
+	}
 
 	/***********************************************/
 	/*   Initialise   the   cpu_list   which  the  */
@@ -3165,7 +3266,9 @@ static struct proc_dir_entry *dir;
 
 	ctf_init();
 	fasttrap_init();
+#if 0 /* mlwang */
 	systrace_init();
+#endif
 	/***********************************************/
 	/*   Arm  the  fbt provider early, because it  */
 	/*   receives  the  symbol table updates, but  */
@@ -3183,6 +3286,7 @@ static struct proc_dir_entry *dir;
 	/*   syms_write().			       */
 	/***********************************************/
 	/* dtrace_linux_init(); */
+	syms_write_init();
 
 	/***********************************************/
 	/*   Create the /dev entry points.	       */
